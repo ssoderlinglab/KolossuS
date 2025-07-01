@@ -42,7 +42,7 @@ MODEL = None
 # FLAG 274: remove testing parameter for final version
 @warn(274)
 def run_kolossus(pairs, seqs=None, embeds=None, dtype=torch.float32, device='cpu', testing=False, 
-                 return_projections=False):
+                 return_projections=False, model='large'):
     global DISCARD
 
     # 2 things to be done if seqs are input: 
@@ -62,7 +62,7 @@ def run_kolossus(pairs, seqs=None, embeds=None, dtype=torch.float32, device='cpu
         DISCARD = DISCARD_COMPONENTS(LEN_T, True)
 
     # will operate on pairs in batches 
-    result = reduce(lambda x, y: x + y, _run_kolossus(pairs, embeds, dtype, device))
+    result = reduce(lambda x, y: x + y, _run_kolossus(pairs, embeds, dtype, device, model))
 
     # return either just distances or distances and projections
     out = kolossus_output(result, return_projections)
@@ -71,7 +71,7 @@ def run_kolossus(pairs, seqs=None, embeds=None, dtype=torch.float32, device='cpu
     
 
 def kolossus(fpairs, fseqs=None, fembeds=None, dtype=torch.float32, device='cpu', 
-             return_projections=False):
+             return_projections=False, model='large'):
     if fseqs is not None:
         seqs = read_sequences(fseqs, to_dict=True)
         pairs = read_pairs(fpairs, '\t', includes_window=True)
@@ -90,10 +90,13 @@ def kolossus(fpairs, fseqs=None, fembeds=None, dtype=torch.float32, device='cpu'
 # where the magic happens
 @BATCH_HANDLER
 @DISCARD
-def _run_kolossus(pairs, embeds, dtype, device):
+def _run_kolossus(pairs, embeds, dtype, device, model):
+    """
+    model is str: 'large' or 'small'
+    """
     global MODEL
     if MODEL is None: 
-        MODEL = load_model()
+        MODEL = load_model(model)
 
     X = get_model_input_from_embeddings(embeds, pairs, dtype, device)
 
