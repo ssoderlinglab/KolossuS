@@ -23,12 +23,22 @@ from .warnings import warn
 # for writing fasta 
 from .write_fasta import write_fasta
 
+# constants 
+ESM_TRANSFORMER_LAYERS = {
+        "esm2_t6_8M_UR50D": 6,
+        "esm2_t12_35M_UR50D": 12,
+        "esm2_t30_150M_UR50D": 30,
+        "esm2_t33_650M_UR50D": 33,
+        "esm2_t36_3B_UR50D": 36,
+        "esm2_t48_15B_UR50D": 48
+}
+
 
 # FLAG 274: for Kanchan to test the code and make sure it's functional
 # NOTE: remove testing in final version
 # seq_list is a list of tuples (seq_id, seq)
 @warn(274)
-def get_embeddings(seq_list, device, testing=False):
+def get_embeddings(seq_list, device, model_name, testing=False):
     if testing:
         return _get_embeddings_testing(seq_list)
     
@@ -75,8 +85,24 @@ def _get_embeddings_testing(seq_list):
 
 # alternative function for getting embeddings
 def extract_embeddings(seq_list, device, model_name='esm2_t48_15B_UR50D', output_dir=None, 
-                       tokens_per_batch=4096, seq_length=1022,repr_layers=[48]):
+                       tokens_per_batch=4096, seq_length=1022, repr_layers=None, layer_to_use=None):
     # handling defaults
+    
+    # handle repr_layers 
+    if repr_layers is None: 
+        try:
+            repr_layers = [ESM_TRANSFORMER_LAYERS[model_name]]
+        except KeyError as e:
+            raise e
+            
+    # handle layer_to_use
+    if layer_to_use is None: 
+        try:
+            layer_to_use = ESM_TRANSFORMER_LAYERS[model_name]
+        except KeyError as e:
+            raise e
+    
+    # handle output directory        
     if output_dir is None:
         output_dir = pathlib.Path('.')
     else:
@@ -145,7 +171,7 @@ def extract_embeddings(seq_list, device, model_name='esm2_t48_15B_UR50D', output
         for fname in fnames:
             fname = os.path.join(tempdir, fname)
             sid = os.path.split(fname)[-1].split('.')[0]
-            sx = torch.load(fname)['mean_representations'][48]
+            sx = torch.load(fname)['mean_representations'][layer_to_use]
             out[sid] = sx
         print(f"done converting {len(out)} / {nseqs} sequences to embeddings")
         print('-'*40)
@@ -154,7 +180,21 @@ def extract_embeddings(seq_list, device, model_name='esm2_t48_15B_UR50D', output
 
 
 def extract_embeddings_from_fasta(fasta_file, output_file, device, model_name, 
-                       tokens_per_batch=4096, seq_length=1022,repr_layers=[48],layer_to_use=48):
+                       tokens_per_batch=4096, seq_length=1022,repr_layers=None, layer_to_use=None):
+    # handle repr_layers 
+    if repr_layers is None: 
+        try:
+            repr_layers = [ESM_TRANSFORMER_LAYERS[model_name]]
+        except KeyError as e:
+            raise e
+            
+    # handle layer_to_use
+    if layer_to_use is None: 
+        try:
+            layer_to_use = ESM_TRANSFORMER_LAYERS[model_name]
+        except KeyError as e:
+            raise e
+            
     # assert valid output and input files 
     assert os.path.isfile(fasta_file)
     assert os.path.isdir(os.path.join(*os.path.split(output_file)[:-1]))
@@ -208,7 +248,21 @@ def extract_embeddings_from_fasta(fasta_file, output_file, device, model_name,
 
 
 def extract_embeddings_from_fasta_individual(fasta_file, output_dir, device, model_name, 
-                       tokens_per_batch=4096, seq_length=1022,repr_layers=[48],layer_to_use=48):
+                       tokens_per_batch=4096, seq_length=1022,repr_layers=None,layer_to_use=None):
+    # handle repr_layers 
+    if repr_layers is None: 
+        try:
+            repr_layers = [ESM_TRANSFORMER_LAYERS[model_name]]
+        except KeyError as e:
+            raise e
+            
+    # handle layer_to_use
+    if layer_to_use is None: 
+        try:
+            layer_to_use = ESM_TRANSFORMER_LAYERS[model_name]
+        except KeyError as e:
+            raise e
+            
     # assert valid output and input files 
     assert os.path.isfile(fasta_file)
     assert os.path.isdir(output_dir)

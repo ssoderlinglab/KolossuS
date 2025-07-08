@@ -69,7 +69,7 @@ def build_model_input_from_sequences(ffasta, fpairs, delimiter='\t', dtype=torch
 
 # FLAG 274: remove testing parameter for final version
 @warn(274)
-def convert_data_seqs_to_embeddings(sequences, pairs, device, testing=True):
+def convert_data_seqs_to_embeddings(sequences, pairs, device, model_name, testing=True):
     # get (substrate, site) from pairs 
     subs_to_site = defaultdict(set)
     for _, subseq_id, site in pairs:
@@ -93,7 +93,7 @@ def convert_data_seqs_to_embeddings(sequences, pairs, device, testing=True):
 
     # extract the embeddings for all sequences 
     # seq_embeddings = {k: v for k, v in get_embeddings(seqlist, device)}
-    seq_embeddings = extract_embeddings(seqlist, device)
+    seq_embeddings = extract_embeddings(seqlist, device, model_name)
 
     return pairs, seq_embeddings
 

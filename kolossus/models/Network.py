@@ -57,7 +57,7 @@ class Network(nn.Module):
 # for smaller version of ESM 
 class NetworkSmall(nn.Module):
     def __init__(self):
-        super(Network,self).__init__()
+        super(NetworkSmall, self).__init__()
         self.kinases_projector1 = nn.Sequential(nn.Linear(1280, 1024), nn.ReLU())
         nn.init.xavier_normal_(self.kinases_projector1[0].weight)
         
@@ -67,7 +67,6 @@ class NetworkSmall(nn.Module):
         self.site_projector1 = nn.Sequential(nn.Linear(1280, 1024), nn.ReLU())
         nn.init.xavier_normal_(self.site_projector1[0].weight)
         
-        B
         self.site_projector2 = nn.Sequential(nn.Linear(1024, 612), nn.ReLU())
         nn.init.xavier_normal_(self.site_projector2[0].weight)
         

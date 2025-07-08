@@ -37,6 +37,8 @@ from .utils.warnings import warn
 
 # load model for running 
 MODEL = None
+MODEL_NAME = {'large': 'esm2_t48_15B_UR50D', 
+              'small': 'esm2_t33_650M_UR50D'}
 
 
 # FLAG 274: remove testing parameter for final version
@@ -51,7 +53,8 @@ def run_kolossus(pairs, seqs=None, embeds=None, dtype=torch.float32, device='cpu
     # task 1 and task 2 done simultaneously in function `convert_data_seqs_to_embeddings`
     if seqs is not None:
         assert isinstance(seqs, dict)
-        pairs, embeds = convert_data_seqs_to_embeddings(seqs, pairs, device, testing)
+        model_name = MODEL_NAME[model]
+        pairs, embeds = convert_data_seqs_to_embeddings(seqs, pairs, device, model_name, testing)
     else:
         assert embeds is not None 
 
@@ -76,7 +79,7 @@ def kolossus(fpairs, fseqs=None, fembeds=None, dtype=torch.float32, device='cpu'
         seqs = read_sequences(fseqs, to_dict=True)
         pairs = read_pairs(fpairs, '\t', includes_window=True)
         return run_kolossus(pairs, seqs=seqs, dtype=dtype, device=device, 
-                            return_projections=return_projections)
+                            return_projections=return_projections, model=model)
     else:
         assert fembeds is not None 
         # read model embeddings
@@ -84,7 +87,7 @@ def kolossus(fpairs, fseqs=None, fembeds=None, dtype=torch.float32, device='cpu'
         # assume each pair embedding is for the appropriate substrate window
         pairs = read_pairs(fpairs, '\t', includes_window=False)
         return run_kolossus(pairs, embeds=embeds, dtype=dtype, device=device,
-                            return_projections=return_projections)
+                            return_projections=return_projections, model=model)
 
 
 # where the magic happens

@@ -58,7 +58,8 @@ def parse_args():
                         help='Number of pairs at a time on which to run model')
     parser.add_argument('-o', '--output', type=str, required=True, 
                         help='desired file path for output')
-
+    parser.add_argument('--model-small', dest='model_small', action='store_true', 
+                        help='flag to use the KolossuS model that uses ESM2-650M parameters')
     args = parser.parse_args()
 
     real_args = {'kolossus': {'fpairs': args.pairs,
@@ -66,7 +67,8 @@ def parse_args():
                          'fembeds': args.embeddings,
                          'dtype': args.dtype,
                          'device': int(args.device) if args.device.isdigit() else args.device,
-                         'return_projections': len(args.projections) > 0},
+                         'return_projections': len(args.projections) > 0,
+                         'model': 'small' if args.model_small else 'large'},
                  'batch_size': args.batch_size,
                  'output': {'dists_fname_out': args.output,
                             'projections_fname_out': args.projections if len(args.projections) > 0 else None}}
