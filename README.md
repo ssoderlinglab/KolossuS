@@ -27,23 +27,26 @@ pip install kolossus
 Run `KolossuS` on the command line using `kolossus-cli`:
 
 ```
-usage: kolossus-cli [-h] --pairs PAIRS [--seqs SEQS] [--embeddings EMBEDDINGS] [--dtype DTYPE] [--projections PROJECTIONS]
-                    [--device DEVICE] [--batch_size BATCH_SIZE] -o OUTPUT
+usage: kolossus-cli [-h] -p PAIRS [-s SEQS] [-e EMBEDDINGS] [--dtype DTYPE] [-r PROJECTIONS] [-d DEVICE]
+                    [--batch_size BATCH_SIZE] -o OUTPUT [--model-small]
 
 optional arguments:
   -h, --help            show this help message and exit
-  --pairs PAIRS         format: <kinase_id> <substrate_id> <substrate_phosphorylation_site>
-  --seqs SEQS           fasta formatted file of sequences, either seqs or embeddings must be provided
-  --embeddings EMBEDDINGS
+  -p PAIRS, --pairs PAIRS
+                        format: <kinase_id> <substrate_id> <substrate_phosphorylation_site>
+  -s SEQS, --seqs SEQS  fasta formatted file of sequences, either seqs or embeddings must be provided
+  -e EMBEDDINGS, --embeddings EMBEDDINGS
                         h5 file of sequence embeddings, either seqs or embeddings must be provided
   --dtype DTYPE         data type of sequence embeddings (usually float32)
-  --projections PROJECTIONS
+  -r PROJECTIONS, --projections PROJECTIONS
                         name of .h5 files for kolossus projections
-  --device DEVICE       default device on which to run model
+  -d DEVICE, --device DEVICE
+                        default device on which to run model
   --batch_size BATCH_SIZE
                         Number of pairs at a time on which to run model
   -o OUTPUT, --output OUTPUT
                         desired file path for output
+  --model-small         flag to use the KolossuS model that uses ESM2-650M parameters
 ```
 
 Note that the fasta file should contain **all** of the sequences (including the full substrate sequences). 
@@ -65,9 +68,9 @@ optional arguments:
 The `pairs` file should be formatted like so:
 
 ```
-kinase_1  subsrate_1  substrate_1_phosphorylation_site_1
+kinase_1  substrate_1  substrate_1_phosphorylation_site_1
 kinase_1  substrate_1  substrate_1_phosphorylation_site_2
-kinase_2  subsrate_2  substrate_2_phosphorylation_site_1
+kinase_2  substrate_2  substrate_2_phosphorylation_site_1
 ...
 ```
 
@@ -82,6 +85,8 @@ There is also a python interface for using `KolossuS` within kolossus scripts. M
 Input:
   - fasta file of all sequences (or .h5 file of embeddings)
   - pair file of format '<kinase_id>\t<substrate_id>\t<substrate_phosphorylation_site>'
+  - device
+  - model: "large" (6B parameter ESM2 base) or "small" (650M parameter ESM2 base)
 
 Output:
   - pairs (kinase_id, substrate_id, substrate_phosphorylation_site, predicted_probability)
