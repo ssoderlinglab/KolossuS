@@ -7,5 +7,5 @@ from .kolossus import kolossus
 from .kolossus import set_batch_size
 
 
-__version__ = '1.0.3'
+__version__ = '1.0.4'
 __all__ = ['run_kolossus', 'kolossus']
