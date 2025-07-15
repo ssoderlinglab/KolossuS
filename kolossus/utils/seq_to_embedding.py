@@ -5,7 +5,9 @@ import shutil
 import pathlib
 
 import tempfile
-import atexit
+import uuid
+import atexit           
+import traceback 
 
 import h5py
 from io import StringIO
@@ -13,6 +15,8 @@ from io import StringIO
 import numpy as np
 
 import torch 
+import torch.utils.data
+
 import esm 
 from esm import FastaBatchedDataset, pretrained
 from transformers import AutoTokenizer, AutoModel
@@ -86,113 +90,91 @@ def _get_embeddings_testing(seq_list):
     return out
 
 
-# alternative function for getting embeddings
 def extract_embeddings(seq_list, device, model_name='esm2_t48_15B_UR50D', output_dir=None, 
-                       tokens_per_batch=4096, seq_length=1022, repr_layers=None, layer_to_use=None):
-    # handling defaults
-    
-    # handle repr_layers 
-    if repr_layers is None: 
+                       tokens_per_batch=4096, seq_length=1022, repr_layers=None, 
+                       layer_to_use=None, keep_temp=False):
+    # Determine layers
+    if repr_layers is None or layer_to_use is None:
         try:
-            repr_layers = [ESM_TRANSFORMER_LAYERS[model_name]]
+            layer = ESM_TRANSFORMER_LAYERS[model_name]
+            repr_layers = repr_layers or [layer]
+            layer_to_use = layer_to_use or layer
         except KeyError as e:
-            raise e
-            
-    # handle layer_to_use
-    if layer_to_use is None: 
-        try:
-            layer_to_use = ESM_TRANSFORMER_LAYERS[model_name]
-        except KeyError as e:
-            raise e
-    
-    # handle output directory        
+            raise ValueError(f"Unknown model name: {model_name}") from e
+
+    # Handle output_dir and tempdir
     if output_dir is None:
-        output_dir = pathlib.Path('.')
+        output_dir = pathlib.Path(f'./{uuid.uuid4().hex}')
+        tempdir = output_dir
     else:
-        if isinstance(output_dir, str):
-            assert os.path.isdir(output_dir)
-            output_dir = pathlib.Path(output_dir)
-        assert isinstance(output_dir, pathlib.Path)
+        output_dir = pathlib.Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        tempdir = output_dir / f'tmp_{uuid.uuid4().hex}'
+
+    tempdir.mkdir(parents=True, exist_ok=True)
+    if not keep_temp:
+        atexit.register(lambda: shutil.rmtree(tempdir, ignore_errors=True))
 
     print('-' * 40)
-    print("Loading esm model")
+    print("Loading ESM model:", model_name)
     model, alphabet = pretrained.load_model_and_alphabet(model_name)
-    print("Esm model done loading")
     model.eval()
+    model.to(device if torch.cuda.is_available() else 'cpu')
+    print("Model loaded.")
 
-    if torch.cuda.is_available():
-        model.to(device)
-    else:
-        model.to('cpu')
-
-    # make temporary directory
-    tempdir = pathlib.Path(f'{output_dir}/kolossus_temp_files')
-    print("Creating temporary directory at", output_dir, ".")
-    tempdir.mkdir(parents=True, exist_ok=True)
-
-    try: 
-        # make fasta file and delete disk storage of sequences 
-        fasta_file = f'{tempdir}/seqs.fasta'
-        write_fasta(list(map(lambda t: (t[0], t[1].strip(PADDING_CHAR)), seq_list)), fasta_file)
+    try:
+        fasta_file = tempdir / "seqs.fasta"
+        write_fasta([(t[0], t[1].strip(PADDING_CHAR)) for t in seq_list], fasta_file)
         nseqs = len(seq_list)
         del seq_list
-        
-        dataset = FastaBatchedDataset.from_file(pathlib.Path(fasta_file))
+
+        dataset = FastaBatchedDataset.from_file(fasta_file)
         batches = dataset.get_batch_indices(tokens_per_batch, extra_toks_per_seq=1)
-    
+
         data_loader = torch.utils.data.DataLoader(
             dataset,
             collate_fn=alphabet.get_batch_converter(seq_length),
-            batch_sampler=batches)
-    
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
-        with torch.no_grad(): 
+            batch_sampler=batches
+        )
+
+        with torch.no_grad():
             for batch_idx, (labels, strs, toks) in enumerate(data_loader):
-
                 print(f'Processing batch {batch_idx + 1} of {len(batches)}')
-
-                if torch.cuda.is_available():
-                    toks = toks.to(device=device, non_blocking=True)
+                toks = toks.to(device=device, non_blocking=True) if torch.cuda.is_available() else toks
 
                 out = model(toks, repr_layers=repr_layers, return_contacts=False)
-                logits = out["logits"].to(device="cpu")
-                representations = {layer: t.to(device="cpu") for layer, t in out["representations"].items()}
+                representations = {layer: t.cpu() for layer, t in out["representations"].items()}
 
                 for i, label in enumerate(labels):
                     entry_id = label.split()[0]
-
-                    filename = f"{tempdir}/{entry_id}.pt"
                     truncate_len = min(seq_length, len(strs[i]))
 
-                    result = {"entry_id": entry_id}
-                    result["mean_representations"] = {
-                            layer: t[i, 1 : truncate_len + 1].mean(0).clone()
-                            for layer, t in representations.items() }
-    
-                    torch.save(result, filename)
+                    result = {
+                        "entry_id": entry_id,
+                        "mean_representations": {
+                            layer: t[i, 1:truncate_len + 1].mean(0).clone()
+                            for layer, t in representations.items()
+                        }
+                    }
+                    torch.save(tempdir / f"{entry_id}.pt", result)
 
-        # get embeddings that are saved 
-        print("extracting mean representations of sequences")
-        fnames = list(filter(lambda s: s.endswith('.pt'), os.listdir(tempdir)))
+        print("Extracting mean representations of sequences")
         out = {}
-        for fname in fnames:
-            fname = os.path.join(tempdir, fname)
-            sid = os.path.split(fname)[-1].split('.')[0]
+        for fname in tempdir.glob("*.pt"):
+            sid = fname.stem
             sx = torch.load(fname)['mean_representations'][layer_to_use]
             out[sid] = sx
-        print(f"done converting {len(out)} / {nseqs} sequences to embeddings")
+
+        print(f"Done converting {len(out)} / {nseqs} sequences to embeddings")
+        print(f"Closing temporary directory at {tempdir}")
         print('-'*40)
 
-        print(f"Closing temporary directory at {output_dir}.")
+        return out
+
     except Exception as e:
         print("Error encountered while creating sequence embeddings:", file=sys.stderr)
-        print(traceback.format_exc())
-    finally: 
-        # remove all files from the temporary directory. 
-        shutil.rmtree(tempdir, ignore_errors=True)
-    
-    return out
+        print(traceback.format_exc(), file=sys.stderr)
+        raise e
 
 
 def extract_embeddings_from_fasta(fasta_file, output_file, device, model_name, 
