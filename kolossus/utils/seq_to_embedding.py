@@ -128,7 +128,7 @@ def extract_embeddings(seq_list, device, model_name='esm2_t48_15B_UR50D', output
     # make temporary directory
     tempdir = pathlib.Path(f'{output_dir}/kolossus_temp_files')
     print("Creating temporary directory at", output_dir, ".")
-    os.mkdir(tempdir, exist_ok=True)
+    tempdir.mkdir(parents=True, exist_ok=True)
     atexit.register(lambda: shutil.rmtree(tempdir, ignore_errors=True))
 
     try: 
