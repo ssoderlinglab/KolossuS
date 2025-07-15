@@ -1,9 +1,12 @@
 
 import os
 import sys
+import shutil
 import pathlib
 
 import tempfile
+import atexit
+
 import h5py
 from io import StringIO
 
@@ -122,7 +125,12 @@ def extract_embeddings(seq_list, device, model_name='esm2_t48_15B_UR50D', output
     else:
         model.to('cpu')
 
-    with tempfile.TemporaryDirectory() as tempdir:
+    # make temporary directory
+    tempdir = pathlib.Path(f'{output_dir}/kolossus_temp_files')
+    print("Creating temporary directory at", output_dir, ".")
+    os.mkdir(tempdir)
+
+    try: 
         # make fasta file and delete disk storage of sequences 
         fasta_file = f'{tempdir}/seqs.fasta'
         write_fasta(list(map(lambda t: (t[0], t[1].strip(PADDING_CHAR)), seq_list)), fasta_file)
@@ -176,6 +184,14 @@ def extract_embeddings(seq_list, device, model_name='esm2_t48_15B_UR50D', output
         print(f"done converting {len(out)} / {nseqs} sequences to embeddings")
         print('-'*40)
 
+        print(f"Closing temporary directory at {output_dir}.")
+    except Exception as e:
+        print("Error encountered while creating sequence embeddings:", file=sys.stderr)
+        print(traceback.format_exc())
+    finally: 
+        # remove all files from the temporary directory. 
+        shutil.rmtree(tempdir)
+    
     return out
 
 

@@ -11,6 +11,8 @@ import h5py
 def main():
     args = parse_args()
 
+    print("flag 1: help!!!!", __file__)
+
     if args['batch_size']:
         print(f"setting batch size to {args['batch_size']}...", end=' ')
         set_batch_size(args['batch_size'])
