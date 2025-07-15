@@ -156,7 +156,7 @@ def extract_embeddings(seq_list, device, model_name='esm2_t48_15B_UR50D', output
                             for layer, t in representations.items()
                         }
                     }
-                    torch.save(tempdir / f"{entry_id}.pt", result)
+                    torch.save(result, tempdir / f"{entry_id}.pt")
 
         print("Extracting mean representations of sequences")
         out = {}
