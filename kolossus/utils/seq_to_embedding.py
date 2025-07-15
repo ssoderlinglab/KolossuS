@@ -162,7 +162,7 @@ def extract_embeddings(seq_list, device, model_name='esm2_t48_15B_UR50D', output
                 for i, label in enumerate(labels):
                     entry_id = label.split()[0]
 
-                    filename = output_dir / f"{tempdir}/{entry_id}.pt"
+                    filename = f"{tempdir}/{entry_id}.pt"
                     truncate_len = min(seq_length, len(strs[i]))
 
                     result = {"entry_id": entry_id}
