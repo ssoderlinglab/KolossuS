@@ -128,7 +128,8 @@ def extract_embeddings(seq_list, device, model_name='esm2_t48_15B_UR50D', output
     # make temporary directory
     tempdir = pathlib.Path(f'{output_dir}/kolossus_temp_files')
     print("Creating temporary directory at", output_dir, ".")
-    os.mkdir(tempdir)
+    os.mkdir(tempdir, exist_ok=True)
+    atexit.register(lambda: shutil.rmtree(tempdir, ignore_errors=True))
 
     try: 
         # make fasta file and delete disk storage of sequences 
@@ -190,7 +191,7 @@ def extract_embeddings(seq_list, device, model_name='esm2_t48_15B_UR50D', output
         print(traceback.format_exc())
     finally: 
         # remove all files from the temporary directory. 
-        shutil.rmtree(tempdir)
+        shutil.rmtree(tempdir, ignore_errors=True)
     
     return out
 
