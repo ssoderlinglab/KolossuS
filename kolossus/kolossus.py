@@ -118,8 +118,13 @@ def _run_kolossus(pairs, embeds, dtype, device, model):
     kinase_embeds = kinase_embeds.detach().cpu().numpy()
     site_embeds = site_embeds.detach().cpu().numpy()
 
-    return tuple(zip(pairs, Y, kinase_embeds, site_embeds))
+    # handle edge case: only one kinase-substrate pair
+    if len(pairs) == 1: 
+        Y = [Y]
 
+    out = tuple(zip(pairs, Y, kinase_embeds, site_embeds))
+
+    return out
 
 def kolossus_output(result, return_projection):
     if return_projection:
